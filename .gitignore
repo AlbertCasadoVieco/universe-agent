@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables (NEVER commit these)
+.env
+.env.local
+.env.production
+
+# Firebase service account (NEVER commit this)
+service-account.json
+*.json.key
+
+# Logs
+*.log
+firebase-debug.log
+firestore-debug.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local SQLite database
+*.db
+
+# Firebase emulator data
+.firebase/

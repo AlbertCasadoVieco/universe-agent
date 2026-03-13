@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "universe-agent-f3f2a",
+    "Universe Agent": "universe-agent"
+  },
+  "targets": {},
+  "etags": {}
+}

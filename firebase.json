@@ -1,0 +1,14 @@
+{
+  "functions": {
+    "source": ".",
+    "runtime": "nodejs20",
+    "main": "dist/webhook.js",
+    "ignore": [
+      "**/node_modules/**",
+      "service-account.json"
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}

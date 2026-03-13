@@ -1,0 +1,31 @@
+{
+  "name": "universe-agent",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/webhook.js",
+  "type": "module",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "gcp-build": "npm run build",
+    "deploy": "npm run build && firebase deploy --only functions"
+  },
+  "dependencies": {
+    "@types/axios": "^0.9.36",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.5.0",
+    "axios": "^1.13.6",
+    "better-sqlite3": "^12.6.2",
+    "dotenv": "^17.3.1",
+    "firebase-admin": "^13.7.0",
+    "firebase-functions": "^7.1.1",
+    "grammy": "^1.41.1",
+    "groq-sdk": "^1.1.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
