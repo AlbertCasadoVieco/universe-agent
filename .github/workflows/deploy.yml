@@ -37,4 +37,6 @@ jobs:
         run: npm run build
 
       - name: Deploy to Firebase Functions
-        run: npx firebase-tools deploy --only functions --token "${{ secrets.FIREBASE_TOKEN }}" --non-interactive
+        run: npx firebase-tools deploy --only functions --project universe-agent-f3f2a --non-interactive
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: service-account.json
