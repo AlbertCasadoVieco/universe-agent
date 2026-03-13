@@ -13,6 +13,12 @@ dist/
 service-account.json
 *.json.key
 
+# Sensitive files
+*.txt
+*.JPG
+*.jpg
+*.png
+
 # Logs
 *.log
 firebase-debug.log
