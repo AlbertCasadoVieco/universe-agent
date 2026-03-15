@@ -2,11 +2,11 @@ import { getLLMResponse } from './llm.js';
 import { executeTool } from '../tools/index.js';
 import { getHistory, saveMessage } from '../database/firebase.js';
 
-export async function runAgentLoop(userId: number, userInput: string) {
-  const maxIterations = 5;
+export async function runAgentLoop(userId: number, userInput: string, imagePath?: string) {
+  const maxIterations = imagePath ? 1 : 5; // Limit to 1 iteration for vision to keep it simple
   let iterations = 0;
 
-  console.log(`[AgentLoop] Starting for user ${userId}`);
+  console.log(`[AgentLoop] Starting for user ${userId}${imagePath ? ' (with image)' : ''}`);
 
   try {
     // Load history from Firestore
@@ -25,16 +25,16 @@ export async function runAgentLoop(userId: number, userInput: string) {
 
     // Save user message to Firestore
     console.log('[AgentLoop] Saving user message...');
-    await saveMessage(userId, 'user', userInput);
+    await saveMessage(userId, 'user', imagePath ? `[Imagen enviada] ${userInput}` : userInput);
     console.log('[AgentLoop] User message saved.');
 
     while (iterations < maxIterations) {
       iterations++;
       console.log(`[AgentLoop] Iteration ${iterations} - Calling LLM...`);
-      const response = await getLLMResponse(messages);
+      const response = await getLLMResponse(messages, false, imagePath);
       console.log('[AgentLoop] LLM responded.');
 
-      if (response.tool_calls) {
+      if (response.tool_calls && !imagePath) {
         console.log(`[AgentLoop] Tool calls detected: ${response.tool_calls.length}`);
         messages.push(response);
         
@@ -62,7 +62,7 @@ export async function runAgentLoop(userId: number, userInput: string) {
     }
 
     console.log('[AgentLoop] Limit reached.');
-    return "I've reached my iteration limit. How else can I help you?";
+    return imagePath ? "No he podido procesar la imagen correctamente." : "I've reached my iteration limit. How else can I help you?";
   } catch (error) {
     console.error('[AgentLoop] Error:', error);
     throw error;

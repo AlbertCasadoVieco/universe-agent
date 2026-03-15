@@ -63,7 +63,7 @@ export async function generateSpeech(text: string) {
   }
 }
 
-export async function getLLMResponse(messages: any[], useFallback = false) {
+export async function getLLMResponse(messages: any[], useFallback = false, imagePath?: string) {
   try {
     if (useFallback) {
       console.log('[LLM] Using OpenRouter Fallback...');
@@ -74,7 +74,7 @@ export async function getLLMResponse(messages: any[], useFallback = false) {
         headers: {
           'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://github.com/AlbertCasadoVieco/universe-agent', // Required by OpenRouter
+          'HTTP-Referer': 'https://github.com/AlbertCasadoVieco/universe-agent',
           'X-Title': 'Universe Agent',
         },
         data: {
@@ -85,13 +85,36 @@ export async function getLLMResponse(messages: any[], useFallback = false) {
       return (response.data as any).choices[0].message;
     }
 
-    const model = 'llama-3.3-70b-versatile';
+    let model = 'llama-3.3-70b-versatile';
+    let finalMessages = [...messages];
+
+    if (imagePath) {
+      console.log(`[LLM] Image detected, using vision model. Path: ${imagePath}`);
+      model = 'llama-3.2-11b-vision-preview';
+      
+      const imageBuffer = fs.readFileSync(imagePath);
+      const base64Image = imageBuffer.toString('base64');
+      
+      // We modify the LAST message (the current user input) to include the image
+      const lastMessage = finalMessages[finalMessages.length - 1];
+      if (lastMessage.role === 'user') {
+        lastMessage.content = [
+          { type: 'text', text: lastMessage.content },
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:image/jpeg;base64,${base64Image}`,
+            },
+          },
+        ];
+      }
+    }
     
     const chatCompletion = await groq.chat.completions.create({
-      messages,
+      messages: finalMessages,
       model,
-      tools: (await import('../tools/index.js')).toolDefinitions as any,
-      tool_choice: 'auto',
+      tools: imagePath ? undefined : (await import('../tools/index.js')).toolDefinitions as any,
+      tool_choice: imagePath ? undefined : 'auto',
     });
 
     return chatCompletion.choices[0].message;

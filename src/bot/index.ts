@@ -50,6 +50,42 @@ bot.on("message:text", async (ctx) => {
   await handleUserMessage(ctx, userId, text);
 });
 
+bot.on("message:photo", async (ctx) => {
+  const userId = ctx.from.id;
+  const caption = ctx.message.caption || "Analiza esta imagen";
+  await ctx.replyWithChatAction("typing");
+
+  try {
+    const photo = ctx.message.photo;
+    const file = await ctx.api.getFile(photo[photo.length - 1].file_id);
+    const path = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
+
+    const tempPath = `/tmp/vision_${file.file_id}.jpg`;
+    const axios = (await import("axios")).default;
+    const response = await axios({
+      method: "get",
+      url: path,
+      responseType: "stream",
+    });
+
+    const writer = (await import("fs")).createWriteStream(tempPath);
+    (response.data as any).pipe(writer);
+
+    await new Promise((resolve, reject) => {
+      writer.on("finish", resolve);
+      writer.on("error", reject);
+    });
+
+    await handleUserMessage(ctx, userId, caption, false, tempPath);
+
+    // Clean up
+    (await import("fs")).unlinkSync(tempPath);
+  } catch (error) {
+    console.error("Photo handling error:", error);
+    await ctx.reply("No he podido procesar la imagen.");
+  }
+});
+
 bot.on("message:voice", async (ctx) => {
   const userId = ctx.from.id;
   await ctx.replyWithChatAction("typing");
@@ -58,7 +94,6 @@ bot.on("message:voice", async (ctx) => {
     const file = await ctx.getFile();
     const path = `https://api.telegram.org/file/bot${process.env.TELEGRAM_BOT_TOKEN}/${file.file_path}`;
 
-    // In Firebase Functions /tmp is writable
     const tempPath = `/tmp/voice_${file.file_id}.ogg`;
 
     const axios = (await import("axios")).default;
@@ -79,7 +114,6 @@ bot.on("message:voice", async (ctx) => {
     const { transcribeAudio } = await import("../agent/llm.js");
     const transcribedText = await transcribeAudio(tempPath);
 
-    // Clean up
     (await import("fs")).unlinkSync(tempPath);
 
     await ctx.reply(`🎤 *Transcripción:* ${transcribedText}`, {
@@ -96,13 +130,14 @@ async function handleUserMessage(
   ctx: any,
   userId: number,
   text: string,
-  sendVoice = false
+  sendVoice = false,
+  imagePath?: string
 ) {
   // Show "typing" status
   await ctx.replyWithChatAction("typing");
 
   try {
-    const response = await runAgentLoop(userId, text);
+    const response = await runAgentLoop(userId, text, imagePath);
 
     if (sendVoice) {
       try {
