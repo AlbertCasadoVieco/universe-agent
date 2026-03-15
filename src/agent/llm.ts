@@ -90,7 +90,7 @@ export async function getLLMResponse(messages: any[], useFallback = false, image
 
     if (imagePath) {
       console.log(`[LLM] Image detected, using vision model. Path: ${imagePath}`);
-      model = 'llama-3.2-11b-vision-preview';
+      model = 'meta-llama/llama-4-scout-17b-16e-instruct';
       
       const imageBuffer = fs.readFileSync(imagePath);
       const base64Image = imageBuffer.toString('base64');
