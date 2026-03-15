@@ -65,26 +65,40 @@ export async function generateSpeech(text: string) {
 
 export async function getLLMResponse(messages: any[], useFallback = false) {
   try {
-    const model = useFallback 
-      ? (process.env.OPENROUTER_MODEL || 'openrouter/free')
-      : 'llama-3.3-70b-versatile';
+    if (useFallback) {
+      console.log('[LLM] Using OpenRouter Fallback...');
+      const axios = (await import('axios')).default;
+      const response = await axios({
+        method: 'post',
+        url: 'https://openrouter.ai/api/v1/chat/completions',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://github.com/AlbertCasadoVieco/universe-agent', // Required by OpenRouter
+          'X-Title': 'Universe Agent',
+        },
+        data: {
+          model: process.env.OPENROUTER_MODEL || 'openrouter/free',
+          messages,
+        },
+      });
+      return (response.data as any).choices[0].message;
+    }
 
-    // If using OpenRouter, we would normally use a different SDK or fetch call.
-    // For simplicity, we'll try to use Groq primary and log fallback intent.
-    // In a real scenario, you'd have a secondary client here.
+    const model = 'llama-3.3-70b-versatile';
     
     const chatCompletion = await groq.chat.completions.create({
       messages,
-      model: model.includes('/') ? 'llama-3.3-70b-versatile' : model, // Fallback logic simplification
-      tools: useFallback ? undefined : (await import('../tools/index.js')).toolDefinitions as any,
+      model,
+      tools: (await import('../tools/index.js')).toolDefinitions as any,
       tool_choice: 'auto',
     });
 
     return chatCompletion.choices[0].message;
-  } catch (error) {
-    console.error('LLM Error:', error);
-    if (!useFallback) {
-      console.log('Switching to fallback...');
+  } catch (error: any) {
+    console.error('LLM Error:', error?.message || error);
+    if (!useFallback && process.env.OPENROUTER_API_KEY) {
+      console.log('Switching to OpenRouter fallback...');
       return getLLMResponse(messages, true);
     }
     throw error;

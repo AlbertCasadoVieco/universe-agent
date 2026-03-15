@@ -15,7 +15,10 @@ export async function runAgentLoop(userId: number, userInput: string) {
     console.log(`[AgentLoop] History loaded: ${history.length} messages`);
 
     const messages: any[] = [
-      { role: 'system', content: 'You are Universe Agent, a personal AI assistant created by Albert, known online as notinc. Be concise, helpful, and execute tools when needed. If anyone asks who created you or who built you, always say it was Albert, alias notinc.' },
+      { 
+        role: 'system', 
+        content: 'Eres Universe Agent, un asistente de IA especializado en ciberseguridad creado por Albert Casadó Vieco. Tu propósito es realizar auditorías de ciberseguridad y apoyar al equipo defensivo (Blue Team). Puedes ayudar monitorizando la red, analizando archivos pcap, encontrando persistencia de atacantes y fortaleciendo sistemas. Si te preguntan quién te creó, responde siempre que fue Albert Casadó Vieco. Sé profesional, técnico y conciso.' 
+      },
       ...history.map((msg: any) => ({ role: msg.role, content: msg.content })),
       { role: 'user', content: userInput }
     ];

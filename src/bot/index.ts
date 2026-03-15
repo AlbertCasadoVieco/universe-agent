@@ -119,9 +119,10 @@ async function handleUserMessage(
     } else {
       await ctx.reply(response);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in bot message handler:", error);
-    await ctx.reply("Lo siento, ha ocurrido un error al procesar tu mensaje.");
+    const errorMessage = error?.message || "Error desconocido";
+    await ctx.reply(`Lo siento, ha ocurrido un error al procesar tu mensaje.\n\n(Detalle: ${errorMessage.substring(0, 100)})`);
   }
 }
 

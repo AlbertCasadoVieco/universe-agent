@@ -38,10 +38,13 @@ export async function getHistory(userId: number) {
     const snapshot = await db.collection('conversations')
       .doc(userId.toString())
       .collection('messages')
-      .orderBy('timestamp', 'asc')
+      .orderBy('timestamp', 'desc') // Change to desc to get most recent first
+      .limit(20)
       .get();
-    console.log(`[Firestore] History fetched: ${snapshot.size} messages`);
-    return snapshot.docs.map(doc => doc.data());
+    
+    console.log(`[Firestore] History fetched: ${snapshot.size} messages (limited to 20)`);
+    // Reverse because we queried desc to get the limit, but LLM needs asc order
+    return snapshot.docs.map(doc => doc.data()).reverse();
   } catch (error) {
     console.error(`[Firestore] getHistory Error for ${userId}:`, error);
     throw error;
