@@ -1,137 +1,74 @@
 # 🌌 Universe Agent
+Un agente de IA avanzado diseñado para **Forense Digital y Threat Hunting**, optimizado para ejecución local de alto rendimiento. Cuenta con una arquitectura modular, memoria persistente ultrarrápida y una base de conocimientos experta mapeada a MITRE ATT&CK. Construido por Albert (alias notinc).
 
-> An AI-powered Telegram bot running 24/7 on the cloud, with voice interaction, persistent memory, and a modular agent architecture. Built by **Albert** (alias [notinc](https://github.com/notinc)).
+## ✨ Características Principales
+*   🗣️ **Interacción por Voz**: Entrada y salida de voz fluida (ElevenLabs TTS + Groq Whisper).
+*   🧠 **Memoría Local (SQLite)**: Migración de Firestore a SQLite local para eliminar latencia y permitir búsquedas instantáneas en auditorías complejas.
+*   🤖 **Bucle de Agente (Think → Act → Observe)**: Ciclo cognitivo potenciado por **Llama 3.3 70B** vía Groq (con fallback a OpenRouter).
+*   🛡️ **Especialista BTL1 / Forense**: Experto en **Autopsy, Splunk, TShark y DeepBlueCLI**.
+*   ⚔️ **Inteligencia de Ataque**: Conocimiento profundo de **Metasploit, Mimikatz y Maldocs (PDF)**.
+*   📊 **Mapeo MITRE ATT&CK**: Correlación automática de artefactos y TTPs con el framework MITRE (T1003, T1558, etc.).
+*   🔐 **Blindaje Técnico**: Sanitización de conocimientos para evitar alucinaciones en valores críticos (ej: 0x17/0x12 en Kerberos).
 
----
-
-## ✨ Features
-
-- 🗣️ **Voice in, Voice out** — Send a voice note, get a voice reply (ElevenLabs TTS + Groq Whisper)
-- 🧠 **Persistent Memory** — Full conversation history stored in Firebase Firestore
-- 🤖 **Agent Loop** — Think → Act → Observe cycle powered by Llama 3.3 70B via Groq
-- 🛠️ **Extensible Tools** — Easy to add new capabilities (web search, timezones, etc.)
-- 🔐 **User Whitelist** — Only approved Telegram User IDs can interact
-- ☁️ **Serverless** — Runs on Firebase Cloud Functions (no server to manage, zero idle cost)
-
----
-
-## 🏗️ Architecture
-
-```
-Telegram User
+## 🏗️ Arquitectura
+**Usuario de Telegram**
      │
-     ▼ (voice/text message)
-Firebase Cloud Function (Webhook)
+     ▼ (mensaje de voz/texto)
+**Instancia Local / Cloud (Modo High-Performance)**
      │
-     ├─ Audio? → Groq Whisper (transcription)
+     ├─ Audio? → Groq Whisper (transcripción)
      │
      ▼
-Agent Loop (runAgentLoop)
+**Agent Loop (runAgentLoop)**
      │
-     ├─ Load History (Firestore)
-     ├─ Call LLM (Groq / Llama 3.3)
-     ├─ Execute Tools (if needed)
-     └─ Save response (Firestore)
+     ├─ Carga de Historial (SQLite)
+     ├─ Llamada a LLM (Groq / Llama 3.3 70B)
+     ├─ Mapeo de Técnicas MITRE
+     ├─ Ejecución de Herramientas (Forense/Red)
+     └─ Guardado de respuesta (SQLite)
      │
      ▼
      │
-     ├─ Text reply? → ctx.reply()
-     └─ Voice reply? → ElevenLabs TTS → ctx.replyWithVoice()
-```
+     ├─ Respuesta Texto? → ctx.reply()
+     └─ Respuesta Voz? → ElevenLabs TTS → ctx.replyWithVoice()
 
----
+## 🛠️ Stack Tecnológico
+| Componente | Tecnología |
+| :--- | :--- |
+| **Plataforma** | Node.js 20 / Firebase Cloud Functions (Gen 2) |
+| **Base de Datos** | **SQLite (Local Memory)** / Firebase Firestore |
+| **Bot Framework** | grammY |
+| **LLM Principal** | **Groq API (Llama 3.3 70B)** |
+| **LLM Fallback** | **OpenRouter** |
+| **Transcripción** | Groq Whisper Large v3 |
+| **TTS** | ElevenLabs (Voz: Rachel) |
+| **Framework Forense** | MITRE ATT&CK Mapping |
 
-## 🛠️ Tech Stack
-
-| Component | Technology |
-|---|---|
-| Platform | Firebase Cloud Functions (Gen 2) |
-| Database | Firebase Firestore |
-| Bot Framework | [grammY](https://grammy.dev/) |
-| LLM | Groq API (Llama 3.3 70B) |
-| Transcription | Groq Whisper Large v3 |
-| Text-to-Speech | ElevenLabs (Rachel voice) |
-| Language | TypeScript / Node.js 20 |
-
----
-
-## ⚙️ Setup
-
-### 1. Clone the repo
-```bash
-git clone https://github.com/notinc/universe-agent.git
-cd universe-agent
-npm install
-```
-
-### 2. Configure environment variables
-Copy the example file and fill in your keys:
-```bash
-# Create your .env file (never commit this!)
-```
-
-```env
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-TELEGRAM_ALLOWED_USER_IDS=your_telegram_user_id
-GROQ_API_KEY=your_groq_api_key
-ELEVENLABS_API_KEY=your_elevenlabs_api_key
-ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM
-LOCAL_SERVICE_ACCOUNT_PATH=./service-account.json
-```
-
-To get your Telegram User ID, message `@userinfobot` on Telegram.
-
-### 3. Firebase setup
-- Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
-- Enable **Firestore** and **Cloud Functions**
-- Download your service account key → save as `service-account.json` in the project root
-- Log in to Firebase CLI: `firebase login`
-- Set the project: `firebase use your-project-id`
-
-### 4. Set Telegram Webhook
-After deploying, set the webhook once:
-```bash
-curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=<YOUR_FUNCTION_URL>"
-```
-
----
-
-## 🚀 Deployment
-
-```bash
-npm run deploy
-```
-
-This builds the TypeScript and deploys to Firebase in one command.
-
-For automatic deployments via GitHub Actions, see `.github/workflows/deploy.yml`.
-
----
-
-## 🔧 Adding New Tools
-
-Create a new function in `src/tools/` and register it in `src/tools/index.ts`. The agent will automatically pick it up.
-
----
-
-## 📁 Project Structure
-
-```
+## 📁 Estructura del Proyecto
+```text
 src/
-├── webhook.ts         # Firebase Cloud Function entry point
+├── webhook.ts         # Punto de entrada de la función (Firebase/Webhook)
+├── index.ts           # Inicialización del bot y modo local
 ├── bot/
-│   └── index.ts      # Telegram bot handlers (text + voice)
+│   └── index.ts       # Handlers de Telegram (Texto + Voz)
 ├── agent/
-│   ├── loop.ts       # Main agent loop (Think→Act→Observe)
-│   └── llm.ts        # Groq LLM, Whisper transcription, ElevenLabs TTS
+│   ├── loop.ts        # Bucle principal Think→Act→Observe
+│   ├── prompt.ts      # SYSTEM_PROMPT (Experticia Forense y Blindaje Técnico)
+│   └── llm.ts         # Integración Groq, Whisper y ElevenLabs
 ├── database/
-│   └── firebase.ts   # Firestore helpers
-└── tools/
-    └── index.ts      # Tool registry and definitions
+│   ├── db.ts          # Gestión de SQLite (Memoria de alto rendimiento)
+│   └── firebase.ts    # Helpers de Firestore (Legacy/Backup)
+├── tools/
+│   ├── index.ts       # Registro y definiciones de herramientas
+│   └── ...            # Herramientas de búsqueda, forense y red
+└── utils/             # Utilidades de Telegram y procesamiento de datos
 ```
 
+## 🚀 Despliegue y Ejecución
+1.  **Modo Local (Recomendado para Auditorías)**: `npm run dev`
+    *   Activa la memoria SQLite para respuestas instantáneas.
+2.  **Despliegue Cloud**: `npm run deploy`
+    *   Compila TypeScript y despliega en Firebase Cloud Functions.
+
 ---
-
-## 📄 License
-
-MIT — Made with ❤️ by Albert (notinc)
+**MIT License** — Made with ❤️ by Albert (notinc)
