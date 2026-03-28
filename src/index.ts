@@ -5,14 +5,18 @@ dotenv.config();
 
 console.log('--- Universe Agent Starting ---');
 
-if (process.env.RUN_LOCAL === 'true') {
+// Force local mode for maximum performance and stability
+const runLocal = process.env.RUN_LOCAL !== 'false'; 
+
+if (runLocal) {
   bot.start({
     onStart: (botInfo) => {
-      console.log(`Bot @${botInfo.username} is now online (Long Polling)`);
+      console.log(`🚀 Universe Agent @${botInfo.username} ONLINE (Local High-Performance Mode)`);
+      console.log(`🧠 Local Memory (SQLite) active.`);
     },
   });
 } else {
-  console.log('Cloud mode: Bot is ready for Webhooks. Execute "npm run deploy" to put it online.');
+  console.log('Cloud mode: Waiting for Webhooks.');
 }
 
 process.once('SIGINT', () => bot.stop());

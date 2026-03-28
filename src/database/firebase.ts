@@ -38,17 +38,28 @@ export async function getHistory(userId: number) {
     const snapshot = await db.collection('conversations')
       .doc(userId.toString())
       .collection('messages')
-      .orderBy('timestamp', 'desc') // Change to desc to get most recent first
-      .limit(20)
+      .orderBy('timestamp', 'desc')
+      .limit(8) // Reduced from 20 to 8 to prevent context bloat
       .get();
     
-    console.log(`[Firestore] History fetched: ${snapshot.size} messages (limited to 20)`);
-    // Reverse because we queried desc to get the limit, but LLM needs asc order
+    console.log(`[Firestore] History fetched: ${snapshot.size} messages (limited to 8)`);
     return snapshot.docs.map(doc => doc.data()).reverse();
   } catch (error) {
     console.error(`[Firestore] getHistory Error for ${userId}:`, error);
     throw error;
   }
+}
+
+// Helper to check and mark an update as processed (Idempotency)
+export async function isUpdateProcessed(updateId: number) {
+  const doc = await db.collection('processed_updates').doc(updateId.toString()).get();
+  if (doc.exists) {
+    return true;
+  }
+  await db.collection('processed_updates').doc(updateId.toString()).set({
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return false;
 }
 
 // Helper to save message

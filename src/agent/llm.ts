@@ -117,6 +117,10 @@ export async function getLLMResponse(messages: any[], useFallback = false, image
       tool_choice: imagePath ? undefined : 'auto',
     });
 
+    if (!chatCompletion.choices || chatCompletion.choices.length === 0) {
+      throw new Error('LLM returned no choices');
+    }
+
     return chatCompletion.choices[0].message;
   } catch (error: any) {
     console.error('LLM Error:', error?.message || error);

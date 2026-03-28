@@ -41,7 +41,8 @@ bot.use(async (ctx, next) => {
   if (userId && allowedIds.includes(userId)) {
     return await next();
   }
-  console.warn(`Unauthorized access attempt from ID: ${userId}`);
+  console.warn(`Unauthorized access attempt from ID: ${userId} (${ctx.from?.first_name})`);
+  await ctx.reply(`🚫 *Acceso Denegado*\nTu ID (${userId}) no está en la lista de usuarios autorizados. Contacta con Albert para que te añada.`, { parse_mode: "Markdown" });
 });
 
 bot.on("message:text", async (ctx) => {
@@ -144,20 +145,26 @@ async function handleUserMessage(
         await ctx.replyWithChatAction("record_voice");
         const { generateSpeech } = await import("../agent/llm.js");
         const audioPath = await generateSpeech(response);
-        await ctx.replyWithVoice(new InputFile(audioPath));
+        await ctx.api.sendVoice(ctx.chat.id, new InputFile(audioPath));
         // Clean up audio file
         (await import("fs")).unlinkSync(audioPath);
       } catch (ttsError) {
         console.error("TTS Fallback to text:", ttsError);
-        await ctx.reply(`(No he podido generar el audio, te respondo por texto):\n\n${response}`);
+        const { sendSafeMessage } = await import("../utils/telegram.js");
+        await sendSafeMessage(ctx, `(No he podido generar el audio, te respondo por texto):\n\n${response}`);
       }
     } else {
-      await ctx.reply(response);
+      const { sendSafeMessage } = await import("../utils/telegram.js");
+      await sendSafeMessage(ctx, response);
     }
   } catch (error: any) {
     console.error("Error in bot message handler:", error);
     const errorMessage = error?.message || "Error desconocido";
-    await ctx.reply(`Lo siento, ha ocurrido un error al procesar tu mensaje.\n\n(Detalle: ${errorMessage.substring(0, 100)})`);
+    try {
+      await ctx.reply(`Lo siento, ha ocurrido un error al procesar tu mensaje.\n\n(Detalle: ${errorMessage.substring(0, 100)})`);
+    } catch (innerError) {
+      console.error("Failed to send error message:", innerError);
+    }
   }
 }
 

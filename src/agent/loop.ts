@@ -1,9 +1,10 @@
 import { getLLMResponse } from './llm.js';
 import { executeTool } from '../tools/index.js';
-import { getHistory, saveMessage } from '../database/firebase.js';
+import { getHistory, saveMessage } from '../database/db.js';
+import { SYSTEM_PROMPT } from './prompt.js';
 
 export async function runAgentLoop(userId: number, userInput: string, imagePath?: string) {
-  const maxIterations = imagePath ? 1 : 5; // Limit to 1 iteration for vision to keep it simple
+  const maxIterations = imagePath ? 1 : 10; // Increased to 10 for better audit capabilities
   let iterations = 0;
 
   console.log(`[AgentLoop] Starting for user ${userId}${imagePath ? ' (with image)' : ''}`);
@@ -11,15 +12,15 @@ export async function runAgentLoop(userId: number, userInput: string, imagePath?
   try {
     // Load history from Firestore
     console.log('[AgentLoop] Loading history...');
-    const history = await getHistory(userId);
-    console.log(`[AgentLoop] History loaded: ${history.length} messages`);
+    const chatHistory = await getHistory(userId);
+    console.log(`[AgentLoop] History loaded: ${chatHistory.length} messages`);
 
     const messages: any[] = [
       { 
         role: 'system', 
-        content: 'Eres Universe Agent, un asistente de IA especializado en ciberseguridad creado por Albert Casadó Vieco, un estudiante de ciberseguridad e inteligencia artificial con grandes aspiraciones y curiosidades. Tu propósito es realizar auditorías de ciberseguridad y apoyar al equipo defensivo (Blue Team). Puedes ayudar monitorizando la red, analizando archivos pcap, encontrando persistencia de atacantes y fortaleciendo sistemas. Si te preguntan quién te creó, di que fue Albert Casadó Vieco y menciónalo como un estudiante apasionado por estos campos. Sé profesional, técnico y conciso.' 
+        content: SYSTEM_PROMPT
       },
-      ...history.map((msg: any) => ({ role: msg.role, content: msg.content })),
+      ...chatHistory.map((msg: any) => ({ role: msg.role, content: msg.content })),
       { role: 'user', content: userInput }
     ];
 
