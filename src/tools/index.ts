@@ -35,18 +35,21 @@ export const toolRegistry = {
       },
       required: ['command'],
     },
-    execute: async ({ command }: any) => await executeRemoteCommand(command),
+    execute: async ({ command }: any, isMaster?: boolean) => {
+      if (!isMaster) throw new Error("Acceso Denegado: Solo el Admin (Albert) puede ejecutar comandos SSH.");
+      return await executeRemoteCommand(command);
+    },
   },
 };
 
 export type ToolName = keyof typeof toolRegistry;
 
-export async function executeTool(name: string, args: any) {
+export async function executeTool(name: string, args: any, isMaster = false) {
   const tool = toolRegistry[name as ToolName];
   if (!tool) {
     throw new Error(`Tool ${name} not found`);
   }
-  return await (tool as any).execute(args);
+  return await (tool as any).execute(args, isMaster);
 }
 
 export const toolDefinitions = Object.entries(toolRegistry).map(([name, tool]) => ({

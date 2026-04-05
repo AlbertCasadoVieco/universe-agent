@@ -79,4 +79,14 @@ export async function isUpdateProcessed(updateId: number) {
   }
 }
 
+export async function clearHistory(userId: number) {
+  try {
+    const stmt = db.prepare('DELETE FROM messages WHERE user_id = ?');
+    stmt.run(userId);
+    console.log(`[DB] History cleared for user ${userId}`);
+  } catch (error) {
+    console.error(`[DB] clearHistory Error for ${userId}:`, error);
+  }
+}
+
 export default db;

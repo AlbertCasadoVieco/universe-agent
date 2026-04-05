@@ -63,7 +63,15 @@ export async function generateSpeech(text: string) {
   }
 }
 
-export async function getLLMResponse(messages: any[], useFallback = false, imagePath?: string) {
+export async function getLLMResponse(
+  messages: any[], 
+  useFallback = false, 
+  imagePath?: string,
+  onChunk?: (chunk: string) => void | Promise<void>
+) {
+  let model = 'llama-3.3-70b-versatile';
+  let finalMessages = [...messages];
+
   try {
     if (useFallback) {
       console.log('[LLM] Using OpenRouter Fallback...');
@@ -78,15 +86,16 @@ export async function getLLMResponse(messages: any[], useFallback = false, image
           'X-Title': 'Universe Agent',
         },
         data: {
-          model: process.env.OPENROUTER_MODEL || 'openrouter/free',
+          model: process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free',
           messages,
         },
       });
-      return (response.data as any).choices[0].message;
+      const result = (response.data as any).choices[0].message;
+      if (onChunk && result.content) {
+        onChunk(result.content);
+      }
+      return result;
     }
-
-    let model = 'llama-3.3-70b-versatile';
-    let finalMessages = [...messages];
 
     if (imagePath) {
       console.log(`[LLM] Image detected, using vision model. Path: ${imagePath}`);
@@ -95,7 +104,6 @@ export async function getLLMResponse(messages: any[], useFallback = false, image
       const imageBuffer = fs.readFileSync(imagePath);
       const base64Image = imageBuffer.toString('base64');
       
-      // We modify the LAST message (the current user input) to include the image
       const lastMessage = finalMessages[finalMessages.length - 1];
       if (lastMessage.role === 'user') {
         lastMessage.content = [
@@ -110,6 +118,50 @@ export async function getLLMResponse(messages: any[], useFallback = false, image
       }
     }
     
+    if (onChunk && !imagePath) {
+      console.log('[LLM] Starting streaming response...');
+      const stream = await groq.chat.completions.create({
+        messages: finalMessages,
+        model,
+        tools: (await import('../tools/index.js')).toolDefinitions as any,
+        tool_choice: 'auto',
+        stream: true,
+      });
+
+      let fullContent = '';
+      let toolCalls: any[] = [];
+
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta;
+        if (delta?.content) {
+          fullContent += delta.content;
+          if (onChunk) {
+            await onChunk(delta.content);
+          }
+        }
+        if (delta?.tool_calls) {
+          // Flatten tool calls from chunks
+          for (const tc of delta.tool_calls) {
+            if (!toolCalls[tc.index]) {
+              toolCalls[tc.index] = {
+                id: tc.id,
+                type: 'function',
+                function: { name: '', arguments: '' }
+              };
+            }
+            if (tc.function?.name) toolCalls[tc.index].function.name += tc.function.name;
+            if (tc.function?.arguments) toolCalls[tc.index].function.arguments += tc.function.arguments;
+          }
+        }
+      }
+
+      return {
+        role: 'assistant',
+        content: fullContent || null,
+        tool_calls: toolCalls.length > 0 ? toolCalls.filter(Boolean) : undefined,
+      };
+    }
+
     const chatCompletion = await groq.chat.completions.create({
       messages: finalMessages,
       model,
@@ -117,16 +169,32 @@ export async function getLLMResponse(messages: any[], useFallback = false, image
       tool_choice: imagePath ? undefined : 'auto',
     });
 
-    if (!chatCompletion.choices || chatCompletion.choices.length === 0) {
-      throw new Error('LLM returned no choices');
-    }
-
     return chatCompletion.choices[0].message;
   } catch (error: any) {
     console.error('LLM Error:', error?.message || error);
+    
+    // First Fallback: Try a lighter Groq model if we were using the 70B model
+    if (!useFallback && model === 'llama-3.3-70b-versatile') {
+      console.log('Switching to lighter Groq model (llama-3.1-8b-instant) due to limits/error...');
+      try {
+        const fallbackCompletion = await groq.chat.completions.create({
+          messages: finalMessages,
+          model: 'llama-3.1-8b-instant',
+          tools: imagePath ? undefined : (await import('../tools/index.js')).toolDefinitions as any,
+          tool_choice: imagePath ? undefined : 'auto',
+        });
+        if (fallbackCompletion.choices && fallbackCompletion.choices.length > 0) {
+          return fallbackCompletion.choices[0].message;
+        }
+      } catch (lighterError: any) {
+        console.error('Lighter Groq model error:', lighterError?.message);
+      }
+    }
+
+    // Second Fallback: OpenRouter
     if (!useFallback && process.env.OPENROUTER_API_KEY) {
       console.log('Switching to OpenRouter fallback...');
-      return getLLMResponse(messages, true);
+      return await getLLMResponse(messages, true, imagePath, onChunk);
     }
     throw error;
   }

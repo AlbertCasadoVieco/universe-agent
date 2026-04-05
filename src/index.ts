@@ -9,6 +9,8 @@ console.log('--- Universe Agent Starting ---');
 const runLocal = process.env.RUN_LOCAL !== 'false'; 
 
 if (runLocal) {
+  // Ensure no webhooks are active to avoid "Conflict" error
+  await bot.api.deleteWebhook();
   bot.start({
     onStart: (botInfo) => {
       console.log(`🚀 Universe Agent @${botInfo.username} ONLINE (Local High-Performance Mode)`);

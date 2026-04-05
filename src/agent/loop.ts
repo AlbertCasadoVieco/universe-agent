@@ -3,36 +3,38 @@ import { executeTool } from '../tools/index.js';
 import { getHistory, saveMessage } from '../database/db.js';
 import { SYSTEM_PROMPT } from './prompt.js';
 
-export async function runAgentLoop(userId: number, userInput: string, imagePath?: string) {
-  const maxIterations = imagePath ? 1 : 10; // Increased to 10 for better audit capabilities
+export async function runAgentLoop(
+  userId: number, 
+  userInput: string, 
+  imagePath?: string,
+  onChunk?: (chunk: string) => void,
+  isMaster = false
+) {
+  const maxIterations = imagePath ? 1 : 10;
   let iterations = 0;
 
   console.log(`[AgentLoop] Starting for user ${userId}${imagePath ? ' (with image)' : ''}`);
 
   try {
-    // Load history from Firestore
-    console.log('[AgentLoop] Loading history...');
     const chatHistory = await getHistory(userId);
-    console.log(`[AgentLoop] History loaded: ${chatHistory.length} messages`);
-
     const messages: any[] = [
       { 
         role: 'system', 
-        content: SYSTEM_PROMPT
+        content: SYSTEM_PROMPT + `\n\n[ADMIN STATUS: ${isMaster ? "MASTER ADMIN (ALBERT)" : "USER"}]`
       },
-      ...chatHistory.map((msg: any) => ({ role: msg.role, content: msg.content })),
+      ...chatHistory.slice(-20).map((msg: any) => ({ role: msg.role, content: msg.content })),
       { role: 'user', content: userInput }
     ];
 
-    // Save user message to Firestore
     console.log('[AgentLoop] Saving user message...');
     await saveMessage(userId, 'user', imagePath ? `[Imagen enviada] ${userInput}` : userInput);
-    console.log('[AgentLoop] User message saved.');
 
     while (iterations < maxIterations) {
       iterations++;
       console.log(`[AgentLoop] Iteration ${iterations} - Calling LLM...`);
-      const response = await getLLMResponse(messages, false, imagePath);
+      
+      // Pass onChunk to getLLMResponse
+      const response = await getLLMResponse(messages, false, imagePath, onChunk);
       console.log('[AgentLoop] LLM responded.');
 
       if (response.tool_calls && !imagePath) {
@@ -41,7 +43,7 @@ export async function runAgentLoop(userId: number, userInput: string, imagePath?
         
         for (const toolCall of response.tool_calls) {
           console.log(`[AgentLoop] Executing tool: ${toolCall.function.name}`);
-          const result = await executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
+          const result = await executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments), isMaster);
           console.log(`[AgentLoop] Tool result obtained: ${JSON.stringify(result)}`);
           messages.push({
             role: 'tool',
@@ -53,7 +55,6 @@ export async function runAgentLoop(userId: number, userInput: string, imagePath?
         continue;
       }
 
-      // Regular text response
       if (response.content) {
         console.log('[AgentLoop] Saving assistant response...');
         await saveMessage(userId, 'assistant', response.content);
